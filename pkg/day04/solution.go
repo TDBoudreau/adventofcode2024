@@ -46,7 +46,7 @@ Directions to check:
 */
 
 func loadPuzzle() ([][]string, error) {
-	lines, err := utils.ReadLines("inputs/04/input.txt")
+	lines, err := utils.ReadLines("input/04/input.txt")
 	if err != nil {
 		return [][]string{}, err
 	}

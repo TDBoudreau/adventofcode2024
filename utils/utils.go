@@ -29,3 +29,30 @@ func ReadLines(filename string) ([]string, error) {
 
 	return lines, scanner.Err()
 }
+
+func Day05LoadInstructions(filename string) ([]string, []string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return []string{}, []string{}, err
+	}
+	defer file.Close()
+
+	var rules, pages []string
+	var doneWithRules bool
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		text := scanner.Text()
+		if text == "" {
+			doneWithRules = true
+			continue
+		}
+
+		if !doneWithRules {
+			rules = append(rules, text)
+		} else {
+			pages = append(pages, text)
+		}
+	}
+
+	return rules, pages, nil
+}

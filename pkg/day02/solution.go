@@ -89,7 +89,7 @@ func modifyReport(report []int) bool {
 }
 
 func Part1() (int, error) {
-	lines, err := utils.ReadLines("inputs/day02.txt")
+	lines, err := utils.ReadLines("input/02/input.txt")
 	if err != nil {
 		return 0, err
 	}
@@ -109,7 +109,7 @@ func Part1() (int, error) {
 }
 
 func Part2() (int, error) {
-	lines, err := utils.ReadLines("inputs/day02.txt")
+	lines, err := utils.ReadLines("input/02/input.txt")
 	if err != nil {
 		return 0, err
 	}

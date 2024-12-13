@@ -7,10 +7,11 @@ import (
 )
 
 func main() {
-	solution, err := day05.Part1()
+	part1, part2, err := day05.AllParts()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Part 1:", solution)
+	fmt.Println("Part 1:", part1)
+	fmt.Println("Part 2:", part2)
 }

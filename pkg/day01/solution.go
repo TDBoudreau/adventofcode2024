@@ -46,7 +46,7 @@ func diff(x, y int) int {
 }
 
 func Part1() (int, error) {
-	lines, err := utils.ReadLines("inputs/day01.txt")
+	lines, err := utils.ReadLines("input/01/input.txt")
 	if err != nil {
 		return 0, err
 	}
