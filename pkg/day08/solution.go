@@ -37,8 +37,8 @@ func createMap(lines []string) ([][]string, map[string][]Position) {
 
 // Solve reads the input file and returns the results for both parts of the problem.
 func Solve(inputPath string) (int, int, error) {
-	// lines, err := utils.ReadLines("input/08/input.txt")
-	lines, err := utils.ReadLines("input/08/ex.txt")
+	lines, err := utils.ReadLines("input/08/input.txt")
+	// lines, err := utils.ReadLines("input/08/ex.txt")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -151,7 +151,6 @@ func part1(city [][]string, antennas map[string][]Position) (int, error) {
 }
 
 func addAntinodes(a1, a2 Position, antinodes map[Position][]string, mapBounds Position, freq string) map[Position][]string {
-
 	// First antinode: 2*a1 - a2
 	antinode1 := Position{x: 2*a1.x - a2.x, y: 2*a1.y - a2.y}
 	_, has := antinodes[antinode1]
@@ -243,164 +242,37 @@ func part2(city [][]string, antennas map[string][]Position) (int, error) {
 }
 
 func addAntinodesLine(a1, a2 Position, antinodes map[Position][]string, mapBounds Position, freq string) map[Position][]string {
-	maxX := mapBounds.x
-	maxY := mapBounds.y
+	maxX, maxY := mapBounds.x, mapBounds.y
 
-	// Compute the two antinodes:
-	p1 := Position{x: 2*a1.x - a2.x, y: 2*a1.y - a2.y}
-	p2 := Position{x: 2*a2.x - a1.x, y: 2*a2.y - a1.y}
+	// Add antinodes ontop of antenna
+	antinodes[a1] = append(antinodes[a1], freq)
+	antinodes[a2] = append(antinodes[a2], freq)
 
-	dx := p2.x - p1.x
-	dy := p2.y - p1.y
+	// Direction vectors
+	dxAB := a1.x - a2.x
+	dyAB := a1.y - a2.y
+	dxBA := a2.x - a1.x
+	dyBA := a2.y - a1.y
 
-	// Handle special cases: vertical or horizontal lines
-	if dx == 0 && dy == 0 {
-		// Both antinodes are at the same point (very unusual), just add that one if inside
-		if p1.x >= 0 && p1.x < maxX && p1.y >= 0 && p1.y < maxY {
-			antinodes[p1] = append(antinodes[p1], freq)
-		}
-		return antinodes
+	// First antinode on A side
+	currentA := Position{x: 2*a1.x - a2.x, y: 2*a1.y - a2.y}
+	// Keep stepping until out of bounds
+	for currentA.x >= 0 && currentA.x < maxX && currentA.y >= 0 && currentA.y < maxY {
+		antinodes[currentA] = append(antinodes[currentA], freq)
+		// Move one step further out along the line in the A direction
+		currentA.x += dxAB
+		currentA.y += dyAB
 	}
 
-	if dx == 0 {
-		// Vertical line: x = p1.x
-		x := p1.x
-		if x >= 0 && x < maxX {
-			// Covers entire height
-			for y := 0; y < maxY; y++ {
-				antinodes[Position{x, y}] = append(antinodes[Position{x, y}], freq)
-			}
-		}
-		return antinodes
-	}
-
-	if dy == 0 {
-		// Horizontal line: y = p1.y
-		y := p1.y
-		if y >= 0 && y < maxY {
-			// Covers entire width
-			for x := 0; x < maxX; x++ {
-				antinodes[Position{x, y}] = append(antinodes[Position{x, y}], freq)
-			}
-		}
-		return antinodes
-	}
-
-	// For a general line, find intersections with the map boundary:
-	tValues := []float64{}
-
-	// Compute intersection t values if possible:
-	// Left boundary (X=0)
-	if dx != 0 {
-		tLeft := float64(-p1.x) / float64(dx)
-		Yleft := float64(p1.y) + tLeft*float64(dy)
-		if Yleft >= 0 && Yleft <= float64(maxY-1) {
-			tValues = append(tValues, tLeft)
-		}
-
-		// Right boundary (X=maxX-1)
-		tRight := float64((maxX-1)-p1.x) / float64(dx)
-		Yright := float64(p1.y) + tRight*float64(dy)
-		if Yright >= 0 && Yright <= float64(maxY-1) {
-			tValues = append(tValues, tRight)
-		}
-	}
-
-	// Top boundary (Y=0)
-	if dy != 0 {
-		tTop := float64(-p1.y) / float64(dy)
-		Xtop := float64(p1.x) + tTop*float64(dx)
-		if Xtop >= 0 && Xtop <= float64(maxX-1) {
-			tValues = append(tValues, tTop)
-		}
-
-		// Bottom boundary (Y=maxY-1)
-		tBottom := float64((maxY-1)-p1.y) / float64(dy)
-		Xbottom := float64(p1.x) + tBottom*float64(dx)
-		if Xbottom >= 0 && Xbottom <= float64(maxX-1) {
-			tValues = append(tValues, tBottom)
-		}
-	}
-
-	if len(tValues) == 0 {
-		// No intersection within the map? The line might be entirely outside.
-		return antinodes
-	}
-
-	// We need the min and max t that define the segment inside the map
-	minT, maxT := minMax(tValues)
-
-	// Convert these t-values into actual points
-	startX := int(float64(p1.x) + minT*float64(dx))
-	startY := int(float64(p1.y) + minT*float64(dy))
-	endX := int(float64(p1.x) + maxT*float64(dx))
-	endY := int(float64(p1.y) + maxT*float64(dy))
-
-	// Now use Bresenham's line algorithm from (startX,startY) to (endX,endY)
-	linePoints := bresenhamLine(startX, startY, endX, endY)
-
-	// Add all these points to antinodes
-	for _, pt := range linePoints {
-		if pt.x >= 0 && pt.x < maxX && pt.y >= 0 && pt.y < maxY {
-			antinodes[pt] = append(antinodes[pt], freq)
-		}
+	// First antinode on B side
+	currentB := Position{x: 2*a2.x - a1.x, y: 2*a2.y - a1.y}
+	// Keep stepping until out of bounds
+	for currentB.x >= 0 && currentB.x < maxX && currentB.y >= 0 && currentB.y < maxY {
+		antinodes[currentB] = append(antinodes[currentB], freq)
+		// Move one step further out along the line in the B direction
+		currentB.x += dxBA
+		currentB.y += dyBA
 	}
 
 	return antinodes
-}
-
-func minMax(arr []float64) (float64, float64) {
-	min := arr[0]
-	max := arr[0]
-	for _, v := range arr[1:] {
-		if v < min {
-			min = v
-		}
-		if v > max {
-			max = v
-		}
-	}
-	return min, max
-}
-
-func bresenhamLine(x0, y0, x1, y1 int) []Position {
-	var points []Position
-
-	dx := absInt(x1 - x0)
-	sx := 1
-	if x0 > x1 {
-		sx = -1
-	}
-	dy := -absInt(y1 - y0)
-	sy := 1
-	if y0 > y1 {
-		sy = -1
-	}
-	err := dx + dy
-
-	x, y := x0, y0
-	for {
-		points = append(points, Position{x, y})
-		if x == x1 && y == y1 {
-			break
-		}
-		e2 := 2 * err
-		if e2 >= dy {
-			err += dy
-			x += sx
-		}
-		if e2 <= dx {
-			err += dx
-			y += sy
-		}
-	}
-
-	return points
-}
-
-func absInt(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
 }
