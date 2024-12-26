@@ -1,7 +1,6 @@
 package day09
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/tdboudreau/adventofcode2024/utils"
@@ -59,18 +58,12 @@ func part1(discMap string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
-	// fmt.Println(fileBlocks)
-
-	// compactedFiles := compactBlocks(fileBlocks)
-
-	// fmt.Println(compactedFiles)
-
-	checksum := calculateChecksum(fileBlocks)
+	compactedFiles := compactBlocks(fileBlocks)
+	checksum := calculateChecksum(compactedFiles)
 
 	return checksum, nil
 	// 88217448737			-- too low? oooh, multi-digit fileIDs, how annoying
-	// 154181994596019	-- too high.. hmmm
+	// 154181994596019	-- too high.. hmmm. let's change how we are tracking files into a Block struct.
 	// 6200294120911		-- **winner, winner**
 }
 
@@ -205,55 +198,122 @@ func part2(discMap string) (int, error) {
 	}
 
 	compactedBlocks := compactWholeBlocks(blocks, blockMap, maxID)
-	fmt.Println(compactedBlocks)
+	// fmt.Println(compactedBlocks)
 
-	return 0, nil
+	checksum := calculateChecksum(compactedBlocks)
+
+	return checksum, nil
+	// 4061067712061 -- too low.
 }
 
 func compactWholeBlocks(blocks []Block, blockMap map[int]Block, maxID int) []Block {
-	fmt.Println("here")
-	var positions []Block
-	var compactedBlocks []Block
-	for _, block := range blocks {
-		compactedBlocks = append(compactedBlocks, block)
+	compactedBlocks := make([]Block, len(blocks))
+	copy(compactedBlocks, blocks)
 
-		for i := 0; i < block.Length; i++ {
-			positions = append(positions, Block{FileID: block.FileID, Length: 1})
+	// Process files from highest ID to lowest
+	for fileID := maxID; fileID >= 0; fileID-- {
+		fileBlock, exists := blockMap[fileID]
+		if !exists {
+			continue
 		}
-	}
 
-	for maxID > 0 {
-		selectedBlock := blockMap[maxID]
-		for i := 0; i < len(compactedBlocks); i++ {
-			if compactedBlocks[i].FileID == -1 && compactedBlocks[i].Length <= selectedBlock.Length && i > 0 {
-				if compactedBlocks[i].Length == selectedBlock.Length {
-					// replace with selectedBlock
-					compactedBlocks[i].FileID = selectedBlock.FileID
-					compactedBlocks[selectedBlock.Index].FileID = -1
-				} else {
-					diff := compactedBlocks[i].Length - selectedBlock.Length
-					if diff < 0 {
-						diff = -diff
-					}
+		// Find the leftmost suitable space
+		bestSpaceIndex := -1
+		currentIndex := 0
 
-					// replace with selectedBlock & update length
-					compactedBlocks[i].FileID = selectedBlock.FileID
-					compactedBlocks[i].Length = selectedBlock.Length
-
-					// insert new FileID: -1 Block after block[i]
-					preBlock := compactedBlocks[:i+1]
-					postBlocks := compactedBlocks[i:]
-					preBlock = append(preBlock, Block{FileID: -1, Length: diff, Index: i + 1})
-					compactedBlocks = append(preBlock, postBlocks...)
-
-					// update selected block index to reflect spaces
-					selectedBlock.FileID = -1
-				}
+		for i, block := range compactedBlocks {
+			if block.FileID == fileID {
+				// Found the current position of this file
 				break
 			}
+
+			if block.FileID == -1 {
+				// Check if we have enough continuous space here
+				spaceSize := 0
+				spaceStart := i
+
+				for j := i; j < len(compactedBlocks); j++ {
+					if compactedBlocks[j].FileID != -1 {
+						break
+					}
+					spaceSize += compactedBlocks[j].Length
+				}
+
+				if spaceSize >= fileBlock.Length && (bestSpaceIndex == -1 || spaceStart < bestSpaceIndex) {
+					bestSpaceIndex = spaceStart
+				}
+			}
+			currentIndex += block.Length
 		}
 
-		maxID--
+		// If we found a suitable space, move the file there
+		if bestSpaceIndex != -1 {
+			// Find current file position
+			currentPos := -1
+			for i, block := range compactedBlocks {
+				if block.FileID == fileID {
+					currentPos = i
+					break
+				}
+			}
+
+			if currentPos > bestSpaceIndex {
+				// Create new block arrangement
+				newBlocks := make([]Block, 0)
+
+				// Add blocks before the space
+				newBlocks = append(newBlocks, compactedBlocks[:bestSpaceIndex]...)
+
+				// Add the file block
+				newBlocks = append(newBlocks, Block{
+					FileID: fileID,
+					Length: fileBlock.Length,
+					Index:  len(newBlocks),
+				})
+
+				// Add remaining space if any
+				remainingSpace := 0
+				for i := bestSpaceIndex; i < currentPos; i++ {
+					if compactedBlocks[i].FileID == -1 {
+						remainingSpace += compactedBlocks[i].Length
+					}
+				}
+				remainingSpace -= fileBlock.Length
+
+				if remainingSpace > 0 {
+					newBlocks = append(newBlocks, Block{
+						FileID: -1,
+						Length: remainingSpace,
+						Index:  len(newBlocks),
+					})
+				}
+
+				// Add blocks between space and original position
+				for i := bestSpaceIndex; i < currentPos; i++ {
+					if compactedBlocks[i].FileID != -1 && compactedBlocks[i].FileID != fileID {
+						newBlocks = append(newBlocks, compactedBlocks[i])
+						newBlocks[len(newBlocks)-1].Index = len(newBlocks) - 1
+					}
+				}
+
+				// Add space where the file was
+				newBlocks = append(newBlocks, Block{
+					FileID: -1,
+					Length: fileBlock.Length,
+					Index:  len(newBlocks),
+				})
+
+				// Add remaining blocks
+				newBlocks = append(newBlocks, compactedBlocks[currentPos+1:]...)
+
+				// Update indices
+				for i := range newBlocks {
+					newBlocks[i].Index = i
+				}
+
+				compactedBlocks = newBlocks
+			}
+		}
 	}
 
 	return compactedBlocks
